@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import connection from './database.js'
 import bcrypt from 'bcrypt'
+import { v4 as uuidv4 } from 'uuid';
 
 const app = express()
 app.use(express.json())
@@ -11,7 +12,6 @@ app.use(cors())
 app.post('/sign-in', async (req, res) => {
     try {
     const { email, password } = req.body
-
     const result = await connection.query(`
         SELECT * 
         FROM users
@@ -21,7 +21,14 @@ app.post('/sign-in', async (req, res) => {
     const user = result.rows[0]
 
     if(user && bcrypt.compareSync(password, user.password)){
-        res.sendStatus(200)
+        const token = uuidv4()
+
+        await connection.query(`
+            INSERT INTO sessions 
+            (user_id, token)
+            VALUES ($1, $2)
+        `, [user.id, token])
+        res.sendStatus(200).send(token)
     } else {
         res.sendStatus(401)
     }  
@@ -36,7 +43,7 @@ app.post('/sign-up', async (req, res) =>{
     const { name, email, password } = req.body
     const passwordHash = bcrypt.hashSync(password, 10)
     
-    const user = await connection(`
+    const user = await connection.query(`
         SELECT * 
         FROM users
         WHERE email = $1

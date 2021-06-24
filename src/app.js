@@ -19,14 +19,14 @@ app.post('/sign-in', async (req, res) => {
         WHERE email = $1    
     `, [email])
 
-    const user = result.rows[0]
+    const foundUser = result.rows[0]
 
-    if(user && bcrypt.compareSync(password, user.password)){
+    if(foundUser && bcrypt.compareSync(password, foundUser.password)){
         const session = await connection.query(`
             SELECT *
             FROM sessions
             WHERE sessions.user_id = $1
-        `, [user.id])
+        `, [foundUser.id])
 
         const activeSession = session.rows[0]
         if(activeSession){
@@ -38,10 +38,11 @@ app.post('/sign-in', async (req, res) => {
             INSERT INTO sessions 
             (user_id, token)
             VALUES ($1, $2)
-        `, [user.id, token])
+        `, [foundUser.id, token])
         
-        console.log(token)
-        res.send(token)
+
+        const user = { id: foundUser.id, name: foundUser.name, token: token}
+        res.send(user)
     } else {
         res.sendStatus(401)
     }  
@@ -76,7 +77,6 @@ app.post('/sign-up', async (req, res) =>{
 
     res.sendStatus(201)
     } catch (error) {
-        console.log(error)
         res.sendStatus(500)
     }
 })
@@ -90,7 +90,7 @@ app.get('/transactions', async (req, res) => {
         if(!token) return res.sendStatus(401)
 
         const result = await connection.query(`
-            SELECT transactions.type, transactions.value, transactions.transaction_date
+            SELECT transactions.type, transactions.value, transactions.transaction_date, transactions.description
             FROM sessions
             JOIN users
             ON sessions.user_id = users.id
@@ -108,18 +108,18 @@ app.get('/transactions', async (req, res) => {
             res.sendStatus(401)
         }
     } catch (error) {
-        console.log(error)
         res.sendStatus(500)
     }
 })
 // newIncome route
 app.post('/newIncome', async (req, res) => {
     try {
-        const { type, value } = req.body
+        const { value, description } = req.body
         const authorization = req.header('Authorization')
         const token = authorization?.replace('Bearer ', '')
+        const newValue = value.replace(",", ".")
+        const type = "income"
 
-        if(type !== 'income') return res.sendStatus(400)
         if(!token) return res.sendStatus(401)
 
         const user = await connection.query(`
@@ -131,9 +131,9 @@ app.post('/newIncome', async (req, res) => {
         const userId = user.rows[0].user_id
         const transaction_date = dayjs().format()
         await connection.query(`
-            INSERT INTO transactions (type, value, user_id, transaction_date)
-            VALUES ($1, $2, $3, $4)
-        `, [type, value, userId, transaction_date])
+            INSERT INTO transactions (type, value, user_id, transaction_date, description)
+            VALUES ($1, $2, $3, $4, $5)
+        `, [type, newValue*100, userId, transaction_date, description])
 
         res.sendStatus(201)
     } catch (error) {
@@ -143,11 +143,12 @@ app.post('/newIncome', async (req, res) => {
 // newOutflow route
 app.post('/newOutflow', async (req, res) => {
     try {
-        const { type, value } = req.body
+        const {value, description} = req.body
         const authorization = req.header('Authorization')
         const token = authorization?.replace('Bearer ', '')
+        const newValue = value.replace(",", ".")
+        const type = "outflow"
 
-        if(type !== 'outflow') return res.sendStatus(400)
         if(!token) return res.sendStatus(401)
 
         const user = await connection.query(`
@@ -159,9 +160,9 @@ app.post('/newOutflow', async (req, res) => {
         const userId = user.rows[0].user_id
         const transaction_date = dayjs().format()
         await connection.query(`
-            INSERT INTO transactions (type, value, user_id, transaction_date)
-            VALUES ($1, $2, $3, $4)
-        `, [type, value, userId, transaction_date])
+            INSERT INTO transactions (type, value, user_id, transaction_date, description)
+            VALUES ($1, $2, $3, $4, $5)
+        `, [type, newValue*100, userId, transaction_date, description])
 
         res.sendStatus(201)
     } catch (error) {

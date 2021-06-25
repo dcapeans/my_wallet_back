@@ -127,7 +127,6 @@ app.post('/newIncome', async (req, res) => {
             FROM sessions
             WHERE sessions.token = $1
         `, [token])
-
         const userId = user.rows[0].user_id
         const transaction_date = dayjs().format()
         await connection.query(`
@@ -137,6 +136,7 @@ app.post('/newIncome', async (req, res) => {
 
         res.sendStatus(201)
     } catch (error) {
+        console.log(error)
         res.sendStatus(500)
     }
 })
@@ -170,6 +170,27 @@ app.post('/newOutflow', async (req, res) => {
     }
 })
 
-app.listen(4000, () => {
-    console.log("Server listening at port 4000")
+// END SESSION ROUTE
+app.post('/logout', async (req, res) => {
+    try {
+        const authorization = req.header('Authorization')
+        const token = authorization?.replace('Bearer ', '')
+        if(!token) return res.sendStatus(401)
+
+        await connection.query(`
+            DELETE
+            FROM sessions
+            WHERE token = $1
+        `, [token])
+        res.sendStatus(200)   
+    } catch (error) {
+        res.sendStatus(500)
+    }
 })
+
+// TEST
+app.get("/banana", (req, res) => {
+    res.sendStatus(200)
+})
+
+export default app

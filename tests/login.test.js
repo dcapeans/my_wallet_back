@@ -19,7 +19,6 @@ afterAll(() => {
     connection.end()
 })
 
-
 describe("POST /sign-up", () => {
     it("returns status 201 for success", async () => {
         const credentials = {name: "Teste", email: "teste@teste.com", password: "123456"}
@@ -88,5 +87,4 @@ describe("POST /logout", () => {
         const result = await supertest(app).post("/logout").set({Authorization: ""})
         expect(result.status).toEqual(401)
     })
-    
 })

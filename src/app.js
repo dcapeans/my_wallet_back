@@ -12,43 +12,41 @@ app.use(cors())
 // sign-in route
 app.post('/sign-in', async (req, res) => {
     try {
-    const { email, password } = req.body
-    const result = await connection.query(`
-        SELECT * 
-        FROM users
-        WHERE email = $1    
-    `, [email])
+        const { email, password } = req.body
+        const result = await connection.query(`
+            SELECT * 
+            FROM users
+            WHERE email = $1    
+        `, [email])
 
-    const foundUser = result.rows[0]
+        const foundUser = result.rows[0]
 
-    if(foundUser && bcrypt.compareSync(password, foundUser.password)){
-        const session = await connection.query(`
-            SELECT sessions.user_id, sessions.token, users.name
-            FROM sessions
-            JOIN users
-            ON sessions.user_id = users.id
-            WHERE sessions.user_id = $1
-        `, [foundUser.id])
+        if(foundUser && bcrypt.compareSync(password, foundUser.password)){
+            const session = await connection.query(`
+                SELECT sessions.user_id, sessions.token, users.name
+                FROM sessions
+                JOIN users
+                ON sessions.user_id = users.id
+                WHERE sessions.user_id = $1
+            `, [foundUser.id])
 
-        const activeSession = session.rows[0]
-        if(activeSession){
+            const activeSession = session.rows[0]
+            if(activeSession){
+                return res.status(200).send({id: activeSession.user_id, name: activeSession.name, token: activeSession.token})
+            }
 
-            return res.status(200).send({id: activeSession.user_id, name: activeSession.name, token: activeSession.token})
-        }
-
-        const token = uuidv4()
-        await connection.query(`
-            INSERT INTO sessions 
-            (user_id, token)
-            VALUES ($1, $2)
-        `, [foundUser.id, token])
-        
-
-        const user = { id: foundUser.id, name: foundUser.name, token: token}
-        res.status(200).send(user)
-    } else {
-        res.sendStatus(401)
-    }  
+            const token = uuidv4()
+            await connection.query(`
+                INSERT INTO sessions 
+                (user_id, token)
+                VALUES ($1, $2)
+            `, [foundUser.id, token])
+            
+            const user = { id: foundUser.id, name: foundUser.name, token: token}
+            res.status(200).send(user)
+        } else {
+            res.sendStatus(401)
+        }  
     } catch (error) {
         res.sendStatus(500)
     }
@@ -57,28 +55,28 @@ app.post('/sign-in', async (req, res) => {
 // sign-up route
 app.post('/sign-up', async (req, res) =>{
     try {
-    const { name, email, password } = req.body
-    const passwordHash = bcrypt.hashSync(password, 10)
-    
-    const user = await connection.query(`
-        SELECT * 
-        FROM users
-        WHERE email = $1
-    `, [email])
+        const { name, email, password } = req.body
+        const passwordHash = bcrypt.hashSync(password, 10)
+        
+        const user = await connection.query(`
+            SELECT * 
+            FROM users
+            WHERE email = $1
+        `, [email])
 
-    const userExists = user.rows[0]
+        const userExists = user.rows[0]
 
-    if(userExists){
-        return res.sendStatus(409)
-    }
+        if(userExists){
+            return res.sendStatus(409)
+        }
 
-    await connection.query(`
-        INSERT INTO users 
-        (name, email, password)
-        VALUES ($1, $2, $3)
-    `, [name, email, passwordHash])
+        await connection.query(`
+            INSERT INTO users 
+            (name, email, password)
+            VALUES ($1, $2, $3)
+        `, [name, email, passwordHash])
 
-    res.sendStatus(201)
+        res.sendStatus(201)
     } catch (error) {
         res.sendStatus(500)
     }
@@ -210,7 +208,6 @@ app.post('/logout', async (req, res) => {
         `, [token])
         res.sendStatus(200)   
     } catch (error) {
-        console.log(error)
         res.sendStatus(500)
     }
 })

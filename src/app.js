@@ -199,7 +199,7 @@ app.post('/newOutflow', async (req, res) => {
 // END SESSION ROUTE
 app.post('/logout', async (req, res) => {
     try {
-        const authorization = req.header('Authorization')
+        const authorization = req.headers['authorization'];
         const token = authorization?.replace('Bearer ', '')
         if(!token) return res.sendStatus(401)
 

@@ -81,6 +81,7 @@ app.post('/sign-up', async (req, res) =>{
     }
 })
 
+let contador;
 // all transactions route
 app.get('/transactions', async (req, res) => {
     try {
@@ -88,6 +89,28 @@ app.get('/transactions', async (req, res) => {
         const token = authorization?.replace('Bearer ', '')
 
         if(!token) return res.sendStatus(401)
+
+        const incomes = await connection.query(`
+            SELECT transactions.value 
+            FROM sessions
+            JOIN users
+            ON sessions.user_id = users.id
+            JOIN transactions
+            ON transactions.user_id = users.id
+            WHERE sessions.token = $1 AND transactions.type = $2
+        `, [token, "income"])
+        const outflows = await connection.query(`
+            SELECT transactions.value 
+            FROM sessions
+            JOIN users
+            ON sessions.user_id = users.id
+            JOIN transactions
+            ON transactions.user_id = users.id
+            WHERE sessions.token = $1 AND transactions.type = $2
+        `, [token, "outflow"])
+        const incomeTotal = incomes.rows.reduce((acc, cur) => acc + +cur.value, 0)
+        const outflowTotal = outflows.rows.reduce((acc, cur) => acc + +cur.value, 0)
+        const balanceTotal = incomeTotal - outflowTotal
 
         const result = await connection.query(`
             SELECT transactions.type, transactions.value, transactions.transaction_date, transactions.description
@@ -102,7 +125,7 @@ app.get('/transactions', async (req, res) => {
         const transactions = result.rows
 
         if(transactions){
-            res.send(transactions)
+            res.send({transactions, balanceTotal})
             return
         } else{
             res.sendStatus(401)
@@ -186,11 +209,6 @@ app.post('/logout', async (req, res) => {
     } catch (error) {
         res.sendStatus(500)
     }
-})
-
-// TEST
-app.get("/banana", (req, res) => {
-    res.sendStatus(200)
 })
 
 export default app

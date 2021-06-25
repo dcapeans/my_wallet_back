@@ -23,14 +23,17 @@ app.post('/sign-in', async (req, res) => {
 
     if(foundUser && bcrypt.compareSync(password, foundUser.password)){
         const session = await connection.query(`
-            SELECT *
+            SELECT sessions.user_id, sessions.token, users.name
             FROM sessions
+            JOIN users
+            ON sessions.user_id = users.id
             WHERE sessions.user_id = $1
         `, [foundUser.id])
 
         const activeSession = session.rows[0]
         if(activeSession){
-            return res.send(activeSession.token)
+
+            return res.status(200).send({id: activeSession.user_id, name: activeSession.name, token: activeSession.token})
         }
 
         const token = uuidv4()
@@ -42,7 +45,7 @@ app.post('/sign-in', async (req, res) => {
         
 
         const user = { id: foundUser.id, name: foundUser.name, token: token}
-        res.send(user)
+        res.status(200).send(user)
     } else {
         res.sendStatus(401)
     }  
@@ -125,7 +128,7 @@ app.get('/transactions', async (req, res) => {
         const transactions = result.rows
 
         if(transactions){
-            res.send({transactions, balanceTotal})
+            res.status(200).send({transactions, balanceTotal})
             return
         } else{
             res.sendStatus(401)
@@ -207,6 +210,7 @@ app.post('/logout', async (req, res) => {
         `, [token])
         res.sendStatus(200)   
     } catch (error) {
+        console.log(error)
         res.sendStatus(500)
     }
 })
